@@ -1,0 +1,15 @@
+
+/target/
+/bin/
+
+
+/.settings/
+/.classpath
+/.project
+
+
+/.mvn/
+/mvnw
+/mvnw.cmd
+
+/src/main/resources/application.properties
