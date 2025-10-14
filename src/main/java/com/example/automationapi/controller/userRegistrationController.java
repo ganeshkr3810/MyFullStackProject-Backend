@@ -19,7 +19,7 @@ import com.example.automationapi.model.userRegistrationData;
 import com.example.automationapi.repository.userRepository;
 
 @RestController
-@CrossOrigin(origins = "http://127.0.0.1:5500") 
+@CrossOrigin(origins = "https://my-full-stack-project-yxgc.vercel.app") 
 @RequestMapping("/api/userinfo")
 public class userRegistrationController {
 	 private final userRepository repository;
