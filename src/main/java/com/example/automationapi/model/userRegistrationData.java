@@ -1,5 +1,7 @@
 package com.example.automationapi.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -24,10 +26,16 @@ public class userRegistrationData {
 	private Long id;
 	private String name;
 	private String email;
+	
+	
 	private String password;
+	
 	private String profession;
 	private String address;
 	private String status;
+	
+	@JsonIgnore   // ✅ Hide token from public responses
+    private String jwtToken;
 	
 	
 	public String getStatus() {
@@ -71,6 +79,12 @@ public class userRegistrationData {
 	}
 	public void setAddress(String address) {
 		this.address = address;
+	}
+	public String getJwtToken() {
+		return jwtToken;
+	}
+	public void setJwtToken(String jwtToken) {
+		this.jwtToken = jwtToken;
 	}
 
 

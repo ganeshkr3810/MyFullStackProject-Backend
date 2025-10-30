@@ -6,6 +6,6 @@ import com.example.automationapi.model.userRegistrationData;
 
 public interface userRepository extends JpaRepository<userRegistrationData, Long> {
 	
-	
+	userRegistrationData findByEmail(String email);
 
 }
