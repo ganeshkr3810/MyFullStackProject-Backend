@@ -24,4 +24,10 @@ public interface ShareRequestRepository extends JpaRepository<ShareRequest, Long
             String targetMobile,
             String status
     );
+    
+    List<ShareRequest> findByRequesterMobileAndStatusIn(
+            String requesterMobile,
+            List<String> statuses
+    );
+
 }

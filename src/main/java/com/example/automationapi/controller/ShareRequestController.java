@@ -69,8 +69,13 @@ public class ShareRequestController {
     @GetMapping("/sent")
     public List<ShareRequest> sent(
             @RequestHeader("X-User-Mobile") String requesterMobile) {
-        return repo.findByRequesterMobileAndStatus(requesterMobile, "PENDING");
+
+        return repo.findByRequesterMobileAndStatusIn(
+                requesterMobile,
+                List.of("PENDING", "APPROVED")
+        );
     }
+
 
 
     // TARGET APPROVES
