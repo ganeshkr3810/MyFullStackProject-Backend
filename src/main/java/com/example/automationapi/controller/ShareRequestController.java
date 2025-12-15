@@ -65,6 +65,13 @@ public class ShareRequestController {
 
         return repo.findByTargetMobileAndStatus(targetMobile, "PENDING");
     }
+    
+    @GetMapping("/sent")
+    public List<ShareRequest> sent(
+            @RequestHeader("X-User-Mobile") String requesterMobile) {
+        return repo.findByRequesterMobileAndStatus(requesterMobile, "PENDING");
+    }
+
 
     // TARGET APPROVES
     @PostMapping("/{id}/approve")
