@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.automationapi.model.LocationMessage;
+import com.example.automationapi.model.ShareRequest;
 import com.example.automationapi.repository.LocationMessageRepository;
 import com.example.automationapi.repository.ShareRequestRepository;
 import com.example.automationapi.service.NotificationService;
@@ -33,7 +34,7 @@ public class LocationController {
             @RequestHeader("X-User-Mobile") String ownerMobile,
             @RequestBody LocationDto body) {
 
-        // save location
+        // ✅ Save GPS to DB
         LocationMessage msg = new LocationMessage(
                 ownerMobile,
                 body.lat,
@@ -42,16 +43,19 @@ public class LocationController {
         );
         locationRepo.save(msg);
 
-        // send live location ONLY to approved viewers
-        List<com.example.automationapi.model.ShareRequest> approved =
-                requestRepo.findByRequesterMobileAndStatusIn(
+        // ✅ VERY IMPORTANT FIX
+        // ownerMobile = TARGET
+        // requesterMobile = VIEWER
+        List<ShareRequest> approvedRequests =
+                requestRepo.findByTargetMobileAndStatus(
                         ownerMobile,
-                        List.of("APPROVED")
+                        "APPROVED"
                 );
 
-        for (var r : approved) {
+        // ✅ Send GPS to ALL approved viewers
+        for (ShareRequest r : approvedRequests) {
             notifier.notifyUser(
-                    r.getTargetMobile(),
+                    r.getRequesterMobile(), // 👈 viewer
                     "/queue/locations",
                     msg
             );
