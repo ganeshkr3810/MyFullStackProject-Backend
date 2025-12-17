@@ -161,6 +161,7 @@ public class ShareRequestController {
 
         ShareRequest saved = repo.save(r);
 
+        // 🔴 notify sender to STOP GPS
         notifier.notifyUser(
                 r.getTargetMobile(),
                 "/queue/notifications",
@@ -169,6 +170,7 @@ public class ShareRequestController {
 
         return ResponseEntity.ok(saved);
     }
+
 
     // ===============================
     // DTO

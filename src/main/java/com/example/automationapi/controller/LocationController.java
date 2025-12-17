@@ -1,95 +1,67 @@
 package com.example.automationapi.controller;
 
+import java.time.Instant;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.automationapi.model.CurrentLocation;
-import com.example.automationapi.model.ShareRequest;
-import com.example.automationapi.repository.CurrentLocationRepository;
+import com.example.automationapi.model.LocationMessage;
+import com.example.automationapi.repository.LocationMessageRepository;
 import com.example.automationapi.repository.ShareRequestRepository;
 import com.example.automationapi.service.NotificationService;
-
-import java.time.Instant;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/locations")
 public class LocationController {
 
-    private final CurrentLocationRepository locRepo;
-    private final ShareRequestRepository reqRepo;
+    private final LocationMessageRepository locationRepo;
+    private final ShareRequestRepository requestRepo;
     private final NotificationService notifier;
 
-    public LocationController(CurrentLocationRepository locRepo,
-                              ShareRequestRepository reqRepo,
-                              NotificationService notifier) {
-        this.locRepo = locRepo;
-        this.reqRepo = reqRepo;
+    public LocationController(
+            LocationMessageRepository locationRepo,
+            ShareRequestRepository requestRepo,
+            NotificationService notifier) {
+        this.locationRepo = locationRepo;
+        this.requestRepo = requestRepo;
         this.notifier = notifier;
     }
 
     @PostMapping
-    public ResponseEntity<CurrentLocation> sendLocation(
-            @RequestHeader("X-User-Mobile") String senderMobile,
+    public ResponseEntity<Void> pushLocation(
+            @RequestHeader("X-User-Mobile") String ownerMobile,
             @RequestBody LocationDto body) {
 
-        CurrentLocation location = locRepo
-                .findById(senderMobile)
-                .orElse(new CurrentLocation());
-
-        location.setOwnerMobile(senderMobile);
-        location.setLat(body.getLat());
-        location.setLon(body.getLon());
-        location.setTs(
-            body.getTs() != null ? body.getTs() : Instant.now()
+        // save location
+        LocationMessage msg = new LocationMessage(
+                ownerMobile,
+                body.lat,
+                body.lon,
+                Instant.now()
         );
+        locationRepo.save(msg);
 
-        CurrentLocation saved = locRepo.save(location);
+        // send live location ONLY to approved viewers
+        List<com.example.automationapi.model.ShareRequest> approved =
+                requestRepo.findByRequesterMobileAndStatusIn(
+                        ownerMobile,
+                        List.of("APPROVED")
+                );
 
-        // 🔴 TARGET sends → REQUESTER receives
-        List<ShareRequest> approved =
-            reqRepo.findByTargetMobileAndStatus(senderMobile, "APPROVED");
-
-        for (ShareRequest r : approved) {
+        for (var r : approved) {
             notifier.notifyUser(
-                r.getRequesterMobile(),   // 🔴 FIXED
-                "/queue/locations",
-                saved
+                    r.getTargetMobile(),
+                    "/queue/locations",
+                    msg
             );
         }
 
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/from/{ownerMobile}")
-    public ResponseEntity<CurrentLocation> getCurrentLocation(
-            @RequestHeader("X-User-Mobile") String caller,
-            @PathVariable String ownerMobile) {
-
-        boolean allowed =
-            reqRepo.existsByRequesterMobileAndTargetMobileAndStatus(
-                ownerMobile, caller, "APPROVED"
-            );
-
-        if (!allowed) {
-            return ResponseEntity.status(403).build();
-        }
-
-        return locRepo.findById(ownerMobile)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-    }
-
-    public static class LocationDto {
-        private double lat;
-        private double lon;
-        private Instant ts;
-
-        public double getLat() { return lat; }
-        public void setLat(double lat) { this.lat = lat; }
-        public double getLon() { return lon; }
-        public void setLon(double lon) { this.lon = lon; }
-        public Instant getTs() { return ts; }
-        public void setTs(Instant ts) { this.ts = ts; }
+    static class LocationDto {
+        public double lat;
+        public double lon;
     }
 }
