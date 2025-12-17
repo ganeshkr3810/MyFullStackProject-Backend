@@ -3,7 +3,7 @@ package com.example.automationapi.websocket;
 import java.util.Map;
 
 import org.springframework.http.server.ServerHttpRequest;
-import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
@@ -14,21 +14,27 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
     @Override
     public boolean beforeHandshake(
             ServerHttpRequest request,
-            ServerHttpResponse response,
+            org.springframework.http.server.ServerHttpResponse response,
             WebSocketHandler wsHandler,
             Map<String, Object> attributes) {
 
-        String query = request.getURI().getQuery();
-        if (query != null && query.startsWith("mobile=")) {
-            attributes.put("user", query.substring(7));
+        if (request instanceof ServletServerHttpRequest servletRequest) {
+            String mobile = servletRequest
+                    .getServletRequest()
+                    .getParameter("mobile");
+
+            if (mobile != null && !mobile.isBlank()) {
+                attributes.put("user", mobile);
+            }
         }
+
         return true;
     }
 
     @Override
     public void afterHandshake(
             ServerHttpRequest request,
-            ServerHttpResponse response,
+            org.springframework.http.server.ServerHttpResponse response,
             WebSocketHandler wsHandler,
             Exception exception) {
     }

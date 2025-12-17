@@ -5,13 +5,19 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class NotificationService {
-    private final SimpMessagingTemplate simpMessagingTemplate;
 
-    public NotificationService(SimpMessagingTemplate simpMessagingTemplate) {
-        this.simpMessagingTemplate = simpMessagingTemplate;
+    private final SimpMessagingTemplate template;
+
+    public NotificationService(SimpMessagingTemplate template) {
+        this.template = template;
     }
 
-    public void notifyUser(String userMobile, String destination, Object payload) {
-        simpMessagingTemplate.convertAndSendToUser(userMobile, destination, payload);
+    public void notifyUser(String mobile, String destination, Object payload) {
+        template.convertAndSendToUser(
+                mobile,
+                destination,
+                payload
+        );
     }
 }
+
