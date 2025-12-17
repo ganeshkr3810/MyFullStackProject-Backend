@@ -29,7 +29,9 @@ public class ShareRequestController {
         this.userRepo = userRepo;
     }
 
-    // CREATE REQUEST
+    // ===============================
+    // CREATE REQUEST (A → B)
+    // ===============================
     @PostMapping
     public ResponseEntity<ShareRequest> createRequest(
             @RequestHeader("X-User-Mobile") String requesterMobile,
@@ -41,7 +43,6 @@ public class ShareRequestController {
 
         String target = body.getTargetMobile();
 
-        // validate both users exist
         if (!userRepo.existsById(requesterMobile) || !userRepo.existsById(target)) {
             return ResponseEntity.status(422).build();
         }
@@ -58,8 +59,10 @@ public class ShareRequestController {
         return ResponseEntity.status(201).body(saved);
     }
 
-    // TARGET USER GETS PENDING REQUESTS
- // TARGET USER GETS ALL REQUESTS (PENDING + APPROVED)
+    // ===============================
+    // TARGET USER (B) → INCOMING
+    // MUST RETURN PENDING + APPROVED
+    // ===============================
     @GetMapping("/incoming")
     public List<ShareRequest> incoming(
             @RequestHeader("X-User-Mobile") String targetMobile) {
@@ -67,10 +70,22 @@ public class ShareRequestController {
         return repo.findByTargetMobile(targetMobile);
     }
 
+    // ===============================
+    // REQUESTER USER (A) → SENT
+    // ===============================
+    @GetMapping("/sent")
+    public List<ShareRequest> sent(
+            @RequestHeader("X-User-Mobile") String requesterMobile) {
 
+        return repo.findByRequesterMobileAndStatusIn(
+                requesterMobile,
+                List.of("PENDING", "APPROVED")
+        );
+    }
 
-
+    // ===============================
     // TARGET APPROVES
+    // ===============================
     @PostMapping("/{id}/approve")
     public ResponseEntity<ShareRequest> approve(
             @RequestHeader("X-User-Mobile") String caller,
@@ -87,6 +102,7 @@ public class ShareRequestController {
         r.setRespondedAt(Instant.now());
 
         ShareRequest saved = repo.save(r);
+
         notifier.notifyUser(
                 r.getRequesterMobile(),
                 "/queue/notifications",
@@ -96,7 +112,9 @@ public class ShareRequestController {
         return ResponseEntity.ok(saved);
     }
 
+    // ===============================
     // TARGET DECLINES
+    // ===============================
     @PostMapping("/{id}/decline")
     public ResponseEntity<ShareRequest> decline(
             @RequestHeader("X-User-Mobile") String caller,
@@ -113,6 +131,7 @@ public class ShareRequestController {
         r.setRespondedAt(Instant.now());
 
         ShareRequest saved = repo.save(r);
+
         notifier.notifyUser(
                 r.getRequesterMobile(),
                 "/queue/notifications",
@@ -122,7 +141,9 @@ public class ShareRequestController {
         return ResponseEntity.ok(saved);
     }
 
+    // ===============================
     // REQUESTER REVOKES
+    // ===============================
     @PostMapping("/{id}/revoke")
     public ResponseEntity<ShareRequest> revoke(
             @RequestHeader("X-User-Mobile") String caller,
@@ -139,6 +160,7 @@ public class ShareRequestController {
         r.setRespondedAt(Instant.now());
 
         ShareRequest saved = repo.save(r);
+
         notifier.notifyUser(
                 r.getTargetMobile(),
                 "/queue/notifications",
@@ -148,10 +170,14 @@ public class ShareRequestController {
         return ResponseEntity.ok(saved);
     }
 
+    // ===============================
     // DTO
+    // ===============================
     public static class RequestDto {
         private String targetMobile;
         public String getTargetMobile() { return targetMobile; }
-        public void setTargetMobile(String targetMobile) { this.targetMobile = targetMobile; }
+        public void setTargetMobile(String targetMobile) {
+            this.targetMobile = targetMobile;
+        }
     }
 }
