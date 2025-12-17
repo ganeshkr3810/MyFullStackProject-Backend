@@ -30,27 +30,29 @@ public class LocationController {
 
     @PostMapping
     public ResponseEntity<CurrentLocation> sendLocation(
-            @RequestHeader("X-User-Mobile") String ownerMobile,
+            @RequestHeader("X-User-Mobile") String senderMobile,
             @RequestBody LocationDto body) {
 
         CurrentLocation location = locRepo
-                .findById(ownerMobile)
+                .findById(senderMobile)
                 .orElse(new CurrentLocation());
 
-        location.setOwnerMobile(ownerMobile);
+        location.setOwnerMobile(senderMobile);
         location.setLat(body.getLat());
         location.setLon(body.getLon());
-        location.setTs(body.getTs() != null ? body.getTs() : Instant.now());
+        location.setTs(
+            body.getTs() != null ? body.getTs() : Instant.now()
+        );
 
         CurrentLocation saved = locRepo.save(location);
 
-        // Push to approved users via WebSocket
+        // 🔴 TARGET sends → REQUESTER receives
         List<ShareRequest> approved =
-            reqRepo.findByRequesterMobileAndStatus(ownerMobile, "APPROVED");
+            reqRepo.findByTargetMobileAndStatus(senderMobile, "APPROVED");
 
         for (ShareRequest r : approved) {
             notifier.notifyUser(
-                r.getTargetMobile(),
+                r.getRequesterMobile(),   // 🔴 FIXED
                 "/queue/locations",
                 saved
             );

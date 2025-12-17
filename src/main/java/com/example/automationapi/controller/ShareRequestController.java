@@ -59,22 +59,14 @@ public class ShareRequestController {
     }
 
     // TARGET USER GETS PENDING REQUESTS
+ // TARGET USER GETS ALL REQUESTS (PENDING + APPROVED)
     @GetMapping("/incoming")
     public List<ShareRequest> incoming(
             @RequestHeader("X-User-Mobile") String targetMobile) {
 
-        return repo.findByTargetMobileAndStatus(targetMobile, "PENDING");
+        return repo.findByTargetMobile(targetMobile);
     }
-    
-    @GetMapping("/sent")
-    public List<ShareRequest> sent(
-            @RequestHeader("X-User-Mobile") String requesterMobile) {
 
-        return repo.findByRequesterMobileAndStatusIn(
-                requesterMobile,
-                List.of("PENDING", "APPROVED")
-        );
-    }
 
 
 

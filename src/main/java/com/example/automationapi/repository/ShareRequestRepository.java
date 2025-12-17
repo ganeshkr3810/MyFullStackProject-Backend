@@ -6,28 +6,24 @@ import java.util.List;
 
 public interface ShareRequestRepository extends JpaRepository<ShareRequest, Long> {
 
-    // Used by ShareRequestController -> incoming()
-    List<ShareRequest> findByTargetMobileAndStatus(
-            String targetMobile,
-            String status
-    );
+    // 🔴 Incoming (target user sees ALL)
+    List<ShareRequest> findByTargetMobile(String targetMobile);
 
-    // Used by LocationController -> push approved users
-    List<ShareRequest> findByRequesterMobileAndStatus(
-            String requesterMobile,
-            String status
-    );
-
-    // Used by LocationController -> GET authorization
-    boolean existsByRequesterMobileAndTargetMobileAndStatus(
-            String requesterMobile,
-            String targetMobile,
-            String status
-    );
-    
+    // Sent requests
     List<ShareRequest> findByRequesterMobileAndStatusIn(
-            String requesterMobile,
-            List<String> statuses
+        String requesterMobile,
+        List<String> status
     );
 
+    // 🔴 Approved where TARGET is sender
+    List<ShareRequest> findByTargetMobileAndStatus(
+        String targetMobile,
+        String status
+    );
+
+    boolean existsByRequesterMobileAndTargetMobileAndStatus(
+        String requesterMobile,
+        String targetMobile,
+        String status
+    );
 }
