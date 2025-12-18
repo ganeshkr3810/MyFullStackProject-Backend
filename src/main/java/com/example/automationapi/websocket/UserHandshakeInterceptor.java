@@ -11,6 +11,17 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 @Component
 public class UserHandshakeInterceptor implements HandshakeInterceptor {
 
+    private String normalize(String mobile) {
+        if (mobile == null) return null;
+        mobile = mobile.trim();
+
+        if (mobile.startsWith("+91")) return mobile;
+        if (mobile.startsWith("91")) return "+" + mobile;
+        if (mobile.startsWith("+")) return mobile;
+
+        return "+91" + mobile;
+    }
+
     @Override
     public boolean beforeHandshake(
             ServerHttpRequest request,
@@ -19,12 +30,17 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
             Map<String, Object> attributes) {
 
         if (request instanceof ServletServerHttpRequest servletRequest) {
-            String mobile = servletRequest
-                    .getServletRequest()
-                    .getParameter("mobile");
 
-            if (mobile != null && !mobile.isBlank()) {
-                attributes.put("user", mobile);
+            String raw =
+                    servletRequest.getServletRequest().getParameter("mobile");
+
+            String normalized = normalize(raw);
+
+            System.out.println("🤝 WS Handshake raw mobile = " + raw);
+            System.out.println("🤝 WS Handshake normalized mobile = " + normalized);
+
+            if (normalized != null && !normalized.isBlank()) {
+                attributes.put("user", normalized);
             }
         }
 

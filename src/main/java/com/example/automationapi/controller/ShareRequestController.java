@@ -37,21 +37,36 @@ public class ShareRequestController {
             @RequestHeader("X-User-Mobile") String requesterMobile,
             @RequestBody RequestDto body) {
 
+        System.out.println("📩 CREATE REQUEST CALLED");
+        System.out.println("Requester header: [" + requesterMobile + "]");
+        System.out.println("Target body: [" + body.getTargetMobile() + "]");
+
         if (requesterMobile == null || requesterMobile.isBlank()) {
+            System.out.println("❌ Requester mobile missing");
             return ResponseEntity.badRequest().build();
         }
 
         String target = body.getTargetMobile();
 
-        if (!userRepo.existsById(requesterMobile) || !userRepo.existsById(target)) {
+        boolean requesterExists = userRepo.existsById(requesterMobile);
+        boolean targetExists = userRepo.existsById(target);
+
+        System.out.println("Requester exists: " + requesterExists);
+        System.out.println("Target exists: " + targetExists);
+
+        if (!requesterExists || !targetExists) {
+            System.out.println("❌ Returning 422");
             return ResponseEntity.status(422).build();
         }
 
         ShareRequest r = new ShareRequest(requesterMobile, target, "PENDING");
         ShareRequest saved = repo.save(r);
 
+        System.out.println("✅ Request saved, ID=" + saved.getId());
+        System.out.println("🔔 Sending WS notification to TARGET = [" + target + "]");
+
         notifier.notifyUser(
-                r.getTargetMobile(),
+                target,
                 "/queue/notifications",
                 saved
         );
@@ -61,12 +76,12 @@ public class ShareRequestController {
 
     // ===============================
     // TARGET USER (B) → INCOMING
-    // MUST RETURN PENDING + APPROVED
     // ===============================
     @GetMapping("/incoming")
     public List<ShareRequest> incoming(
             @RequestHeader("X-User-Mobile") String targetMobile) {
 
+        System.out.println("📥 INCOMING FETCH for [" + targetMobile + "]");
         return repo.findByTargetMobile(targetMobile);
     }
 
@@ -91,6 +106,8 @@ public class ShareRequestController {
             @RequestHeader("X-User-Mobile") String caller,
             @PathVariable Long id) {
 
+        System.out.println("✅ APPROVE called by [" + caller + "] for ID=" + id);
+
         Optional<ShareRequest> opt = repo.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
 
@@ -103,34 +120,8 @@ public class ShareRequestController {
 
         ShareRequest saved = repo.save(r);
 
-        notifier.notifyUser(
-                r.getRequesterMobile(),
-                "/queue/notifications",
-                saved
-        );
-
-        return ResponseEntity.ok(saved);
-    }
-
-    // ===============================
-    // TARGET DECLINES
-    // ===============================
-    @PostMapping("/{id}/decline")
-    public ResponseEntity<ShareRequest> decline(
-            @RequestHeader("X-User-Mobile") String caller,
-            @PathVariable Long id) {
-
-        Optional<ShareRequest> opt = repo.findById(id);
-        if (opt.isEmpty()) return ResponseEntity.notFound().build();
-
-        ShareRequest r = opt.get();
-        if (!r.getTargetMobile().equals(caller))
-            return ResponseEntity.status(403).build();
-
-        r.setStatus("DECLINED");
-        r.setRespondedAt(Instant.now());
-
-        ShareRequest saved = repo.save(r);
+        System.out.println("🔔 Sending WS notification to REQUESTER = [" +
+                r.getRequesterMobile() + "]");
 
         notifier.notifyUser(
                 r.getRequesterMobile(),
@@ -140,37 +131,6 @@ public class ShareRequestController {
 
         return ResponseEntity.ok(saved);
     }
-
-    // ===============================
-    // REQUESTER REVOKES
-    // ===============================
-    @PostMapping("/{id}/revoke")
-    public ResponseEntity<ShareRequest> revoke(
-            @RequestHeader("X-User-Mobile") String caller,
-            @PathVariable Long id) {
-
-        Optional<ShareRequest> opt = repo.findById(id);
-        if (opt.isEmpty()) return ResponseEntity.notFound().build();
-
-        ShareRequest r = opt.get();
-        if (!r.getRequesterMobile().equals(caller))
-            return ResponseEntity.status(403).build();
-
-        r.setStatus("REVOKED");
-        r.setRespondedAt(Instant.now());
-
-        ShareRequest saved = repo.save(r);
-
-        // 🔴 notify sender to STOP GPS
-        notifier.notifyUser(
-                r.getTargetMobile(),
-                "/queue/notifications",
-                saved
-        );
-
-        return ResponseEntity.ok(saved);
-    }
-
 
     // ===============================
     // DTO

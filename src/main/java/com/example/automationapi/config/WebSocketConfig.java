@@ -36,7 +36,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
 
         registry.addEndpoint("/ws")
-                .addInterceptors(handshakeInterceptor)
+                .setAllowedOriginPatterns("*")
                 .setHandshakeHandler(new DefaultHandshakeHandler() {
 
                     @Override
@@ -47,7 +47,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
                         Object mobile = attributes.get("user");
 
-                        // 🔴 CRITICAL: without this, /user/queue/* will NOT work
+                        // 🔍 DEBUG (safe to keep)
+                        System.out.println("🧑 determineUser called, mobile = " + mobile);
+
                         if (mobile == null) {
                             return null;
                         }
@@ -55,7 +57,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         return new UserPrincipal(mobile.toString());
                     }
                 })
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
+                .withSockJS()
+                // 🔥🔥🔥 CRITICAL FIX 🔥🔥🔥
+                // Interceptor MUST be registered here for SockJS
+                .setInterceptors(handshakeInterceptor);
     }
 }

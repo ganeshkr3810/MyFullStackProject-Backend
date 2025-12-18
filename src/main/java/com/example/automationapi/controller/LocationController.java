@@ -1,14 +1,15 @@
 package com.example.automationapi.controller;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.automationapi.model.LocationMessage;
+import com.example.automationapi.model.CurrentLocation;
 import com.example.automationapi.model.ShareRequest;
-import com.example.automationapi.repository.LocationMessageRepository;
+import com.example.automationapi.repository.CurrentLocationRepository;
 import com.example.automationapi.repository.ShareRequestRepository;
 import com.example.automationapi.service.NotificationService;
 
@@ -16,55 +17,57 @@ import com.example.automationapi.service.NotificationService;
 @RequestMapping("/api/locations")
 public class LocationController {
 
-    private final LocationMessageRepository locationRepo;
+    private final CurrentLocationRepository currentRepo;
     private final ShareRequestRepository requestRepo;
     private final NotificationService notifier;
 
     public LocationController(
-            LocationMessageRepository locationRepo,
+            CurrentLocationRepository currentRepo,
             ShareRequestRepository requestRepo,
             NotificationService notifier) {
-        this.locationRepo = locationRepo;
+        this.currentRepo = currentRepo;
         this.requestRepo = requestRepo;
         this.notifier = notifier;
     }
 
     @PostMapping
     public ResponseEntity<Void> pushLocation(
-            @RequestHeader("X-User-Mobile") String ownerMobile,
+            @RequestHeader("X-User-Mobile") String owner,
             @RequestBody LocationDto body) {
 
-        // ✅ Save GPS to DB
-        LocationMessage msg = new LocationMessage(
-                ownerMobile,
-                body.lat,
-                body.lon,
-                Instant.now()
-        );
-        locationRepo.save(msg);
+        Instant now = Instant.now();
 
-        // ✅ VERY IMPORTANT FIX
-        // ownerMobile = TARGET
-        // requesterMobile = VIEWER
-        List<ShareRequest> approvedRequests =
-                requestRepo.findByTargetMobileAndStatus(
-                        ownerMobile,
-                        "APPROVED"
-                );
+        // 🔴 RATE LIMIT (2 seconds)
+        currentRepo.findById(owner).ifPresent(prev -> {
+            if (Duration.between(prev.getTs(), now).getSeconds() < 2) {
+                throw new RuntimeException("RATE_LIMIT");
+            }
+        });
 
-        // ✅ Send GPS to ALL approved viewers
-        for (ShareRequest r : approvedRequests) {
+        // 🔴 UPSERT CURRENT LOCATION
+        CurrentLocation loc = new CurrentLocation();
+        loc.setOwnerMobile(owner);
+        loc.setLat(body.lat);
+        loc.setLon(body.lon);
+        loc.setTs(now);
+        currentRepo.save(loc);
+
+        // 🔴 SEND ONLY TO STILL-APPROVED VIEWERS
+        List<ShareRequest> approved =
+                requestRepo.findByTargetMobileAndStatus(owner, "APPROVED");
+
+        for (ShareRequest r : approved) {
             notifier.notifyUser(
-                    r.getRequesterMobile(), // 👈 viewer
+                    r.getRequesterMobile(),
                     "/queue/locations",
-                    msg
+                    loc
             );
         }
 
         return ResponseEntity.ok().build();
     }
-
-    static class LocationDto {
+    
+    public static class LocationDto {
         public double lat;
         public double lon;
     }

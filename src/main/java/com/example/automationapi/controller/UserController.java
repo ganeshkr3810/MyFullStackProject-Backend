@@ -1,5 +1,6 @@
 package com.example.automationapi.controller;
 
+import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -7,11 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import com.example.automationapi.model.User;
 import com.example.automationapi.repository.LocationUserRepository;
 
-import java.net.URI;
-import java.util.Optional;
-
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/auth")
 public class UserController {
 
     private final LocationUserRepository repo;
@@ -20,30 +18,29 @@ public class UserController {
         this.repo = repo;
     }
 
-    // register or upsert a user
-    @PostMapping
-    public ResponseEntity<User> register(@RequestBody RegisterDto body) {
-        if (body.getMobile() == null || body.getMobile().isBlank()) {
-            return ResponseEntity.badRequest().build();
+    // ---------- REGISTER ----------
+    @PostMapping("/register")
+    public ResponseEntity<User> register(@RequestBody RegisterDto dto) {
+        if (repo.existsById(dto.mobile)) {
+            return ResponseEntity.status(409).build();
         }
-        User u = new User(body.getMobile(), body.getName());
-        User saved = repo.save(u);
-        return ResponseEntity.created(URI.create("/api/users/" + saved.getMobile())).body(saved);
+        User u = new User(dto.mobile, dto.name, dto.email, dto.address);
+        repo.save(u);
+        return ResponseEntity.ok(u);
     }
 
-    @GetMapping("/{mobile}")
-    public ResponseEntity<User> get(@PathVariable String mobile) {
-        Optional<User> opt = repo.findById(mobile);
-        return opt.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    // ---------- LOGIN ----------
+    @GetMapping("/login/{mobile}")
+    public ResponseEntity<User> login(@PathVariable String mobile) {
+        Optional<User> u = repo.findById(mobile);
+        return u.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(404).build());
     }
 
-    public static class RegisterDto {
-        private String mobile;
-        private String name;
-        public String getMobile() { return mobile; }
-        public void setMobile(String mobile) { this.mobile = mobile; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
+    static class RegisterDto {
+        public String name;
+        public String email;
+        public String mobile;
+        public String address;
     }
 }
-
