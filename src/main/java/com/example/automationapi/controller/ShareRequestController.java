@@ -142,4 +142,46 @@ public class ShareRequestController {
             this.targetMobile = targetMobile;
         }
     }
+    
+ // ===============================
+ // REVOKE / STOP SHARING
+ // Can be called by TARGET or REQUESTER
+ // ===============================
+ @PostMapping("/{id}/revoke")
+ public ResponseEntity<Void> revoke(
+         @RequestHeader("X-User-Mobile") String caller,
+         @PathVariable Long id) {
+
+     Optional<ShareRequest> opt = repo.findById(id);
+     if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+     ShareRequest r = opt.get();
+
+     // Only requester OR target can revoke
+     boolean allowed =
+             r.getRequesterMobile().equals(caller) ||
+             r.getTargetMobile().equals(caller);
+
+     if (!allowed) {
+         return ResponseEntity.status(403).build();
+     }
+
+     repo.delete(r);
+
+     // 🔔 notify both sides
+     notifier.notifyUser(
+             r.getRequesterMobile(),
+             "/queue/notifications",
+             "REVOKED"
+     );
+
+     notifier.notifyUser(
+             r.getTargetMobile(),
+             "/queue/notifications",
+             "REVOKED"
+     );
+
+     return ResponseEntity.ok().build();
+ }
+
 }
